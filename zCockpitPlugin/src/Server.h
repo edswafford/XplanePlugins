@@ -51,18 +51,26 @@ private:
 
 	/////////
 	//
-	Network::NETWORK_STATUS recv_broadcast_status{ Network::NETWORK_STATUS::UNKNOWN };
+	//Network::NETWORK_STATUS recv_broadcast_status{ Network::NETWORK_STATUS::UNKNOWN };
 	SOCKET revc_broadcast_socket{ INVALID_SOCKET };
+	bool revc_broadcast_socket_valid{ false };
 	SOCKET send_broadcast_socket{ INVALID_SOCKET };
+	bool send_broadcast_socket_valid{ false };
+
+	SOCKET hw_client_recv_from_socket{ INVALID_SOCKET };
+	bool hw_client_recv_from_socket_valid{ false };
+
+	SOCKET hw_client_send_to_socket{ INVALID_SOCKET };
+	bool hw_client_send_to_socket_valid{ false };
 
 	// Hardware Client
 	bool hw_client_healthy{ false };
 	unsigned long hw_client_ip{ 0 };
-	bool hw_client_recv_from_socket_valid{ false };
-	SOCKET hw_client_recv_from_socket{ INVALID_SOCKET };
+
+	
 	HealthPacket my_health_packet_for_hw_client{};
-	bool hw_client_send_to_socket_valid{ false };
-	SOCKET hw_client_send_to_socket{ INVALID_SOCKET };
+
+
 
 
 

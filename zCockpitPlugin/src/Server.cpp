@@ -45,8 +45,15 @@ Client::~Client()
 
 void Client::drop()
 {
-	network->close_socket(revc_broadcast_socket);
-
+	if (revc_broadcast_socket_valid) {
+		network->close_socket(revc_broadcast_socket);
+	}
+	if (send_broadcast_socket_valid) {
+		network->close_socket(send_broadcast_socket);
+	}
+	if (hw_client_recv_from_socket_valid) {
+		network->close_socket(hw_client_recv_from_socket);
+	}
 	if (hw_client_send_to_socket_valid) {
 		network->close_socket(hw_client_send_to_socket);
 	}
@@ -59,16 +66,13 @@ void Client::drop()
 
 void Client::update()
 {
-	if (recv_broadcast_status != Network::NETWORK_STATUS::VALID && recv_broadcast_status != Network::NETWORK_STATUS::HEALTHY) {
-
+	if (!revc_broadcast_socket_valid) {
 		// we need to init the socket for receiving the broadcast message from client(s)
-
 		revc_broadcast_socket = network->create_bind_socket("broadcast", SERVER_BROADCAST_RX_PORT_ADDRESS);
-		recv_broadcast_status = revc_broadcast_socket != INVALID_SOCKET ? Network::NETWORK_STATUS::VALID : Network::NETWORK_STATUS::FAILED;
+		revc_broadcast_socket_valid = revc_broadcast_socket != INVALID_SOCKET;
 	}
 
-	// We have a valid socket or we've receiving packets from our client
-	if (recv_broadcast_status == Network::NETWORK_STATUS::VALID || recv_broadcast_status == Network::NETWORK_STATUS::HEALTHY) {
+	if (revc_broadcast_socket_valid) {
 
 		// setup address structure that will be filled with the client's ip 
 		struct sockaddr_in broadcast_addr_of_sender;
@@ -77,19 +81,10 @@ void Client::update()
 
 		// look for Clients
 		auto num_bytes = network->recv_data(revc_broadcast_socket, health_buffer, health_packet_size, &broadcast_addr_of_sender, &addr_size);
-		if (revc_broadcast_socket == INVALID_SOCKET) {
-			recv_broadcast_status = Network::NETWORK_STATUS::FAILED;
-		}
-		else if (num_bytes == 0) {
-			recv_broadcast_status = Network::NETWORK_STATUS::VALID;
-		}
-		else {
-			recv_broadcast_status = Network::NETWORK_STATUS::HEALTHY;
-		}
-		//recv_broadcast_status = network->recv_broadcast_health(revc_broadcast_socket, health_buffer, health_packet_size, broadcast_addr_of_sender);
+		revc_broadcast_socket_valid = revc_broadcast_socket != INVALID_SOCKET;
 
 		// We've received Client's Health message, so we know its IP address
-		if (recv_broadcast_status == Network::NETWORK_STATUS::HEALTHY)
+		if (num_bytes > 0)
 		{
 			HealthPacket* client_health_packet = reinterpret_cast<HealthPacket*>(health_buffer);
 			if (client_health_packet->id.client_type == CLIENT_TYPE_HARDWARE && !hw_client_healthy) {
@@ -137,8 +132,8 @@ void Client::update()
 								my_health_packet_for_hw_client.id = client_health_packet->id;
 
 								// Client Does know our IP or RX port -- so initialize ssoceket for broadcasting
-								send_broadcast_socket = network->create_socket("broadcast", true);
-								if (send_broadcast_socket != INVALID_SOCKET) {
+								send_broadcast_socket = network->create_socket("broadcast", send_broadcast_socket_valid, true);
+								if (send_broadcast_socket_valid) {
 									// Broadcast to Client
 									auto num_bytes = sendto(send_broadcast_socket, reinterpret_cast<char*>(&my_health_packet_for_hw_client),
 										health_packet_size, 0, (struct sockaddr*)&client_broadcast_addr, sizeof(client_broadcast_addr));
@@ -148,6 +143,7 @@ void Client::update()
 										LOG(Level::Severe) << "Cannot send_to broadcast socket winsock error :" << network->getErrorMessage(error);
 										network->close_socket(send_broadcast_socket);
 										send_broadcast_socket = INVALID_SOCKET;
+										send_broadcast_socket_valid = false;
 									}
 								}
 							}
@@ -189,8 +185,7 @@ void Client::update()
 					send_to_server_addr.sin_addr.s_addr = hw_client_ip;
 
 					// initialize socket for sending
-					hw_client_send_to_socket = network->create_socket("sendto");
-					hw_client_send_to_socket_valid = hw_client_send_to_socket != INVALID_SOCKET;
+					hw_client_send_to_socket = network->create_socket("sendto", hw_client_send_to_socket_valid);
 					hw_client_healthy = hw_client_send_to_socket_valid;
 				}
 			}
@@ -203,10 +198,10 @@ void Client::update()
 		}
 		else {
 			// keep sending broadcast message until client responds on RX port
-			if (send_broadcast_socket == INVALID_SOCKET) {
-				send_broadcast_socket = network->create_socket("broadcast", true);
+			if (!send_broadcast_socket_valid) {
+				send_broadcast_socket = network->create_socket("broadcast", send_broadcast_socket_valid, true);
 			}
-			if (send_broadcast_socket != INVALID_SOCKET) {
+			if (send_broadcast_socket_valid) {
 				// Broadcast to Client
 				auto num_bytes = sendto(send_broadcast_socket, reinterpret_cast<char*>(&my_health_packet_for_hw_client),
 					health_packet_size, 0, (struct sockaddr*)&client_broadcast_addr, sizeof(client_broadcast_addr));
@@ -216,6 +211,7 @@ void Client::update()
 					LOG(Level::Severe) << "Cannot send_to broadcast socket winsock error :" << network->getErrorMessage(error);
 					network->close_socket(send_broadcast_socket);
 					send_broadcast_socket = INVALID_SOCKET;
+					send_broadcast_socket_valid = false;
 				}
 			}
 		}
