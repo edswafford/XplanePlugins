@@ -72,10 +72,21 @@ void Client::update()
 
 		// setup address structure that will be filled with the client's ip 
 		struct sockaddr_in broadcast_addr_of_sender;
-		memset((char*)&broadcast_addr_of_sender, 0, sizeof(broadcast_addr_of_sender));
+		int addr_size = sizeof(broadcast_addr_of_sender);
+		memset((char*)&broadcast_addr_of_sender, 0,addr_size);
 
 		// look for Clients
-		recv_broadcast_status = network->recv_broadcast_health(revc_broadcast_socket, health_buffer, health_packet_size, broadcast_addr_of_sender);
+		auto num_bytes = network->recv_data(revc_broadcast_socket, health_buffer, health_packet_size, &broadcast_addr_of_sender, &addr_size);
+		if (revc_broadcast_socket == INVALID_SOCKET) {
+			recv_broadcast_status = Network::NETWORK_STATUS::FAILED;
+		}
+		else if (num_bytes == 0) {
+			recv_broadcast_status = Network::NETWORK_STATUS::VALID;
+		}
+		else {
+			recv_broadcast_status = Network::NETWORK_STATUS::HEALTHY;
+		}
+		//recv_broadcast_status = network->recv_broadcast_health(revc_broadcast_socket, health_buffer, health_packet_size, broadcast_addr_of_sender);
 
 		// We've received Client's Health message, so we know its IP address
 		if (recv_broadcast_status == Network::NETWORK_STATUS::HEALTHY)
@@ -95,7 +106,7 @@ void Client::update()
 				if (!hw_client_recv_from_socket_valid) {
 					// initialize socket used to receive data from the client
 					// Use port 0 so the OS knows to assing a port to us from its pool
-					hw_client_recv_from_socket = network->init_recvfrom_socket(0, broadcast_addr_of_sender.sin_addr.S_un.S_addr, true);
+					hw_client_recv_from_socket = network->create_bind_socket("recvfrom", 0, broadcast_addr_of_sender.sin_addr.S_un.S_addr, true);
 					hw_client_recv_from_socket_valid = hw_client_recv_from_socket != INVALID_SOCKET;
 
 					if (hw_client_recv_from_socket_valid) {
