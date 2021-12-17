@@ -35,7 +35,6 @@
   </ImportGroup>
   <ImportGroup Label="Shared">
     <Import Project="..\shared_src\shared_src.vcxitems" Label="Shared" />
-    <Import Project="..\shared_src\shared_src.vcxitems" Label="Shared" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />

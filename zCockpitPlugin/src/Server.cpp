@@ -63,7 +63,7 @@ void Client::update()
 
 		// we need to init the socket for receiving the broadcast message from client(s)
 
-		revc_broadcast_socket = network->init_recv_broadcast_health(SERVER_BROADCAST_RX_PORT_ADDRESS);
+		revc_broadcast_socket = network->create_bind_socket("broadcast", SERVER_BROADCAST_RX_PORT_ADDRESS);
 		recv_broadcast_status = revc_broadcast_socket != INVALID_SOCKET ? Network::NETWORK_STATUS::VALID : Network::NETWORK_STATUS::FAILED;
 	}
 
@@ -88,7 +88,7 @@ void Client::update()
 				
 				// Client RX port is zero right now because the Cleint cannot setup its RX port
 				// until it knows the Server's IP
-				//
+				// So we cannot setup the Our sendto port -- so we broadcast our IP to the Client
 				
 
 				// Setup our recvfrom to Receive Client messages
@@ -126,7 +126,7 @@ void Client::update()
 								my_health_packet_for_hw_client.id = client_health_packet->id;
 
 								// Client Does know our IP or RX port -- so initialize ssoceket for broadcasting
-								send_broadcast_socket = network->init_broadcast_socket();
+								send_broadcast_socket = network->create_socket("broadcast", true);
 								if (send_broadcast_socket != INVALID_SOCKET) {
 									// Broadcast to Client
 									auto num_bytes = sendto(send_broadcast_socket, reinterpret_cast<char*>(&my_health_packet_for_hw_client),
@@ -158,11 +158,12 @@ void Client::update()
 		if (num_bytes == SOCKET_ERROR) {
 			// Cannot use socket -- it has been closed due to error
 			hw_client_recv_from_socket_valid = false;
-			
 		}
 		else if (num_bytes > 0) {
+			LOG() << "received data " << num_bytes;
+
 			// Communication Established
-			hw_client_healthy = false;
+
 			// setup the sendto socket unless it is already up and running
 			if (!hw_client_send_to_socket_valid) {
 				HealthPacket* client_health_packet = reinterpret_cast<HealthPacket*>(receive_buffer);
@@ -177,7 +178,7 @@ void Client::update()
 					send_to_server_addr.sin_addr.s_addr = hw_client_ip;
 
 					// initialize socket for sending
-					hw_client_send_to_socket = network->init_send_socket();
+					hw_client_send_to_socket = network->create_socket("sendto");
 					hw_client_send_to_socket_valid = hw_client_send_to_socket != INVALID_SOCKET;
 					hw_client_healthy = hw_client_send_to_socket_valid;
 				}
@@ -192,7 +193,7 @@ void Client::update()
 		else {
 			// keep sending broadcast message until client responds on RX port
 			if (send_broadcast_socket == INVALID_SOCKET) {
-				send_broadcast_socket = network->init_broadcast_socket();
+				send_broadcast_socket = network->create_socket("broadcast", true);
 			}
 			if (send_broadcast_socket != INVALID_SOCKET) {
 				// Broadcast to Client
@@ -219,7 +220,9 @@ void Client::update()
 
 		// send client my health using client's IP address and port
 		network->sendData(hw_client_send_to_socket, send_to_server_addr, reinterpret_cast<char*>(&my_health_packet_for_hw_client), health_packet_size);
-
+		// verify socket after sending data
+		hw_client_send_to_socket_valid = hw_client_send_to_socket != INVALID_SOCKET;
+		hw_client_healthy = hw_client_send_to_socket_valid;
 	}
 
 
