@@ -46,5 +46,5 @@ private:
 
 	// Server initializes Network
 	// All network communication goes through the server
-	Client server;
+	Server server;
 };
