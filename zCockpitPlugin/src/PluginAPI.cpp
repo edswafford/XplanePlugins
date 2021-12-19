@@ -4,8 +4,8 @@
 #include "XPLMMenus.h"
 #include <XPLMProcessing.h>
 
-#include <string.h>
-#include "xplanePlugin.h"
+#include <string>
+#include "ZCockpitPlugin.h"
 #include "../../../shared_src/logger.h"
 
 
@@ -21,9 +21,10 @@
 	#error This is made to be compiled against the XPLM300 SDK
 #endif
 
+std::unique_ptr<ZCockpitPlugin> zcockpit_plugin{ nullptr };
 
 
-logger LOG("zCockpitPlugin.log");
+logger LOG("ZCockpitPlugin.log");
 
 void menu_handler(void *, void *);
 
@@ -32,7 +33,7 @@ PLUGIN_API float FlightLoopCallback(
 	float inElapsedTimeSinceLastFlightLoop,
 	int inCounter,
 	void* inRefcon) {
-		return XPlanePlugin::getInstance().flightLoop(inElapsedSinceLastCall, inElapsedTimeSinceLastFlightLoop, inCounter, inRefcon);
+		return zcockpit_plugin->flightLoop(inElapsedSinceLastCall, inElapsedTimeSinceLastFlightLoop, inCounter, inRefcon);
 	return 1;
 }
 
@@ -42,8 +43,9 @@ PLUGIN_API int XPluginStart(
 						char *		outSig,
 						char *		outDesc)
 {
+	zcockpit_plugin = std::make_unique<ZCockpitPlugin>();
 	XPLMRegisterFlightLoopCallback(FlightLoopCallback, 0.01f, nullptr);
-	return XPlanePlugin::getInstance().pluginStart(outName, outSig, outDesc);
+	return zcockpit_plugin->pluginStart(outName, outSig, outDesc);
 
 }
 
@@ -52,7 +54,7 @@ PLUGIN_API void	XPluginStop(void)
 	XPLMDebugString("zCockpit: Stopping plugin\n");
 	XPLMUnregisterFlightLoopCallback(FlightLoopCallback, nullptr);
 	XPLMDebugString("zCockpit: FlightLoop Callback Unregistered\n");
-	XPlanePlugin::getInstance().pluginStop();
+	zcockpit_plugin->pluginStop();
 	XPLMDebugString("zCockpit: Plugin stopped!\n");
 }
 

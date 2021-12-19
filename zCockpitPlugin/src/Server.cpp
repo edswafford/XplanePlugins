@@ -15,6 +15,8 @@ extern logger LOG;
 
 Server::Server()
 {
+	// Must be called first to initialize Winsock
+	network = std::make_unique<Network>();
 
 	my_health_packet_for_hw_client.simDataID = SIM_DAT_ID;
 	my_health_packet_for_hw_client.packageType = PackageType::Health;
@@ -32,18 +34,10 @@ Server::Server()
 	client_broadcast_addr.sin_addr.s_addr = INADDR_BROADCAST;
 
 
-	network = Network::instance();
-
 	LOG() << "Starting Server";
-
 }
 
 Server::~Server()
-{
-	Network::drop();
-}
-
-void Server::drop()
 {
 	if (revc_broadcast_socket_valid) {
 		network->close_socket(revc_broadcast_socket);
@@ -58,10 +52,10 @@ void Server::drop()
 		network->close_socket(hw_client_send_to_socket);
 	}
 
-	network->close_socket(hw_client_recv_from_socket);
-	Network::drop();
+	network = nullptr;
 
 }
+
 
 
 void Server::update()

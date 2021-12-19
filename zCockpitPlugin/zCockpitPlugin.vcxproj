@@ -156,14 +156,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\Client.cpp" />
-    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\PluginAPI.cpp" />
     <ClCompile Include="src\Server.cpp" />
-    <ClCompile Include="src\xplanePlugin.cpp" />
+    <ClCompile Include="src\ZCockpitPlugin.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Client.h" />
     <ClInclude Include="src\Server.h" />
-    <ClInclude Include="src\xplanePlugin.h" />
+    <ClInclude Include="src\ZCockpitPlugin.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

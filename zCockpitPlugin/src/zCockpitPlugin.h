@@ -7,21 +7,18 @@
 
 #define VERSION 0.2f
 
-class XPlanePlugin {
-
-private:
-	XPlanePlugin();
-	~XPlanePlugin();
-	XPlanePlugin(const XPlanePlugin&) = delete;
-	XPlanePlugin& operator=(const XPlanePlugin&) = delete;
-
+class ZCockpitPlugin {
 
 public:
-	static XPlanePlugin& getInstance()
-	{
-		static XPlanePlugin instance;
-		return instance;
-	}
+	ZCockpitPlugin();
+	virtual ~ZCockpitPlugin();
+
+	ZCockpitPlugin(const ZCockpitPlugin&) = delete;
+	ZCockpitPlugin& operator=(const ZCockpitPlugin&) = delete;
+	ZCockpitPlugin(const ZCockpitPlugin&&) = delete;
+	ZCockpitPlugin&& operator=(const ZCockpitPlugin&&) = delete;
+
+public:
 
 	// X-Plane API
 	float flightLoop(float inElapsedSinceLastCall, float inElapsedTimeSinceLastFlightLoop, int inCounter, void* inRefcon);
@@ -46,5 +43,5 @@ private:
 
 	// Server initializes Network
 	// All network communication goes through the server
-	Server server;
+	std::unique_ptr<Server> server{nullptr};
 };

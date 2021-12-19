@@ -2,7 +2,7 @@
 
 #include <XPLMUtilities.h>
 
-#include "xplanePlugin.h"
+#include "ZCockpitPlugin.h"
 #include <stdio.h>
 #include "../../../shared_src/logger.h"
 extern logger LOG;
@@ -10,14 +10,19 @@ extern logger LOG;
 static XPLMDataRef zCockpitPluginVersion = nullptr;
 float getzCockpitPluginVersion(void* inRefcon);
 
-XPlanePlugin::XPlanePlugin() : flightLoopInterval(1.0f / 30.f) // Default to 30hz
+ZCockpitPlugin::ZCockpitPlugin() : flightLoopInterval(1.0f / 30.f) // Default to 30hz
 {
+    server = std::make_unique<Server>();
 }
 
-XPlanePlugin::~XPlanePlugin() {
+ZCockpitPlugin::~ZCockpitPlugin() {
+    if (server != nullptr) {
+        server = nullptr;
+        LOG() << "server closed";
+    }
 }
 
-float XPlanePlugin::flightLoop(float inElapsedSinceLastCall,
+float ZCockpitPlugin::flightLoop(float inElapsedSinceLastCall,
     float inElapsedTimeSinceLastFlightLoop,
     int inCounter,
     void* inRefcon) {
@@ -26,7 +31,7 @@ float XPlanePlugin::flightLoop(float inElapsedSinceLastCall,
  //// for (DataRef* ref : refs) updateDataRef(ref);
 
     // Do processing
-    server.update();
+    server->update();
 
 
     return flightLoopInterval;
@@ -34,7 +39,7 @@ float XPlanePlugin::flightLoop(float inElapsedSinceLastCall,
 
 
 
-int XPlanePlugin::pluginStart(char* outName, char* outSig, char* outDesc) {
+int ZCockpitPlugin::pluginStart(char* outName, char* outSig, char* outDesc) {
     LOG() << "zCockpit Plugin started";
 
     strcpy_s(outName, sizeof("zCockpit"), "zCockpit");
@@ -43,7 +48,7 @@ int XPlanePlugin::pluginStart(char* outName, char* outSig, char* outDesc) {
 
 
     g_menu_container_idx = XPLMAppendMenuItem(XPLMFindPluginsMenu(), "zCockpit", 0, 0);
-    g_menu_id = XPLMCreateMenu("ZCockpit", XPLMFindPluginsMenu(), g_menu_container_idx, &XPlanePlugin::menu_handler, NULL);
+    g_menu_id = XPLMCreateMenu("ZCockpit", XPLMFindPluginsMenu(), g_menu_container_idx, &ZCockpitPlugin::menu_handler, NULL);
 
     sprintf_s(msg, sizeof(msg), "ZCockpit Plugin Version: %0.1f", VERSION);
     XPLMAppendMenuItem(g_menu_id, msg, nullptr, 1);
@@ -93,8 +98,9 @@ int XPlanePlugin::pluginStart(char* outName, char* outSig, char* outDesc) {
 }
 
 
-void XPlanePlugin::pluginStop() {
-    server.drop();
+void ZCockpitPlugin::pluginStop() {
+    server = nullptr;
+    LOG() << "server closed";
 
     // Since we created this menu, we'll be good citizens and clean it up as well
     XPLMDestroyMenu(g_menu_id);
@@ -103,11 +109,11 @@ void XPlanePlugin::pluginStop() {
     XPLMUnregisterDataAccessor(zCockpitPluginVersion);
 }
 
-void XPlanePlugin::receiveMessage(XPLMPluginID inFromWho, long inMessage, void* inParam) {
+void ZCockpitPlugin::receiveMessage(XPLMPluginID inFromWho, long inMessage, void* inParam) {
     LOG() << inFromWho << inMessage;
 }
 
-void  XPlanePlugin::menu_handler(void* in_menu_ref, void* in_item_ref)
+void  ZCockpitPlugin::menu_handler(void* in_menu_ref, void* in_item_ref)
 {
     if (!strcmp((const char*)in_item_ref, "Menu Item 1"))
     {

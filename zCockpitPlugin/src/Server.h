@@ -18,13 +18,18 @@ public:
 	Server();
 	virtual ~Server();
 
+	Server(const Server&) = delete;
+	Server& operator=(const Server&) = delete;
+	Server(Server&&) = delete;
+	Server& operator=(Server&&) = delete;
+
 	void update();
 
-	void drop();
 
 
 private:
-	Network* network;
+	std::unique_ptr<Network> network{ nullptr };
+
 
 	std::map<ClientType, std::vector<std::unique_ptr<Client>>> clients;
 
@@ -62,7 +67,7 @@ private:
 	SOCKET hw_client_send_to_socket{ INVALID_SOCKET };
 	bool hw_client_send_to_socket_valid{ false };
 
-	sockaddr_in hw_client_send_to_server_addr;
+	sockaddr_in hw_client_send_to_server_addr{};
 
 	bool hw_client_healthy{ false };
 	unsigned long hw_client_ip{ 0 };
