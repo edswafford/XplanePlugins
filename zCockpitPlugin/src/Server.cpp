@@ -91,8 +91,9 @@ void Server::update()
 		// because it cannot setup its RX port until it knows our IP
 		if (num_bytes > 0)
 		{
-			HealthPacket* client_health_packet = reinterpret_cast<HealthPacket*>(receive_buffer);
-			if (client_health_packet->id.client_type == CLIENT_TYPE_HARDWARE && !hw_client_healthy) {
+			const auto client_health_packet = reinterpret_cast<HealthPacket*>(receive_buffer);
+
+			if (client_health_packet->id.client_type == ClientType::hardware && !hw_client_healthy) {
 
 				// Set up sendto for sending message to Client
 				hw_client_ip = broadcast_addr_of_sender.sin_addr.S_un.S_addr;
@@ -104,22 +105,20 @@ void Server::update()
 				// Check for Health packet
 				HealthPacket* client_health_packet = reinterpret_cast<HealthPacket*>(receive_buffer);
 				if (client_health_packet->packageType == PackageType::Health) {
-					std::string client_port_str = std::string(client_health_packet->port);
-					LOG() << "Broadcast Health message received from IP " << hw_client_ip_str << " RX Port is " << client_port_str;
+					auto latest_port = ntohs(client_health_packet->port);
+					LOG() << "Broadcast Health message received from IP " << hw_client_ip_str << " RX Port is " << latest_port;
 
 					//
 					// Set up sendto port if we can
 					//
-					if (client_port_str != "0") {
-						int latest_port = 0;
+					if (latest_port != 0) {
 						//has the Client's RX port changed 
-						if (Util::to_int(client_port_str, latest_port)) {
-							if (hw_client_send_to_socket_valid && hw_client_recv_port != latest_port) {
-								network->close_socket(hw_client_send_to_socket);
-								hw_client_send_to_socket_valid = false;
-								hw_client_recv_port = latest_port;
-							}
+						if (hw_client_send_to_socket_valid && hw_client_recv_port != latest_port) {
+							network->close_socket(hw_client_send_to_socket);
+							hw_client_send_to_socket_valid = false;
+							hw_client_recv_port = latest_port;
 						}
+
 						else if (!hw_client_send_to_socket_valid) {
 							hw_client_recv_port = latest_port;
 						}
@@ -127,9 +126,9 @@ void Server::update()
 							if (hw_client_recv_port) {
 								// Initialize address and Port for sending to Client
 								//
-								send_to_server_addr.sin_family = AF_INET;
-								send_to_server_addr.sin_port = htons(hw_client_recv_port);
-								send_to_server_addr.sin_addr.s_addr = hw_client_ip;
+								hw_client_send_to_server_addr.sin_family = AF_INET;
+								hw_client_send_to_server_addr.sin_port = htons(hw_client_recv_port);
+								hw_client_send_to_server_addr.sin_addr.s_addr = hw_client_ip;
 
 								// initialize socket for sending
 								hw_client_send_to_socket = network->create_socket("sendto", hw_client_send_to_socket_valid);
@@ -155,20 +154,9 @@ void Server::update()
 							hw_client_recv_from_socket_valid = false;
 						}
 						else {
-							server_recvfrom_port_for_hw_client_str;
-							try {
-								server_recvfrom_port_for_hw_client_str = std::to_string(server_recvfrom_port_for_hw_client);
-							}
-							catch (std::bad_alloc) {
-								std::cout << "Cannot convert RX Port number: " << server_recvfrom_port_for_hw_client << " to string";
-								network->close_socket(hw_client_recv_from_socket);
-								hw_client_recv_from_socket_valid = false;
-							}
-
 							if (hw_client_recv_from_socket_valid) {
 								// Tell client our RX port
-								memcpy(my_health_packet_for_hw_client.port, server_recvfrom_port_for_hw_client_str.c_str(), server_recvfrom_port_for_hw_client_str.size());
-								my_health_packet_for_hw_client.size = static_cast<int>(server_recvfrom_port_for_hw_client_str.size());
+								my_health_packet_for_hw_client.port = htons(server_recvfrom_port_for_hw_client);
 
 								// We are broadcasting to all client --> identify which client
 								my_health_packet_for_hw_client.id = client_health_packet->id;
@@ -217,36 +205,34 @@ void Server::update()
 			// Check for Health packet
 			HealthPacket* client_health_packet = reinterpret_cast<HealthPacket*>(receive_buffer);
 			if (client_health_packet->packageType == PackageType::Health) {
-				int latest_port = 0;
-				std::string client_port_str = std::string(client_health_packet->port);
-				LOG() << "Health message received on My RX port " << server_recvfrom_port_for_hw_client_str <<" from IP " << hw_client_ip_str << " Client RX Port is " << client_port_str;
+				auto latest_port = ntohs(client_health_packet->port);
+				LOG() << "Health message received on My RX port " << server_recvfrom_port_for_hw_client <<" from IP " << hw_client_ip_str << " Client RX Port is " << latest_port;
 
 				//has the Client's RX port changed 
-				if (Util::to_int(client_port_str, latest_port)) {
-					if (hw_client_send_to_socket_valid && hw_client_recv_port != latest_port) {
-						LOG() << "Client IP " << hw_client_ip_str << " Port changed from " << hw_client_recv_port << " to " << latest_port;
-						network->close_socket(hw_client_send_to_socket);
-						hw_client_send_to_socket_valid = false;
-						hw_client_recv_port = latest_port;
-					}
-					else if (!hw_client_send_to_socket_valid) {
-						hw_client_recv_port = latest_port;
-					}
+				if (hw_client_send_to_socket_valid && hw_client_recv_port != latest_port) {
+					LOG() << "Client IP " << hw_client_ip_str << " Port changed from " << hw_client_recv_port << " to " << latest_port;
+					network->close_socket(hw_client_send_to_socket);
+					hw_client_send_to_socket_valid = false;
+					hw_client_recv_port = latest_port;
 				}
+				else if (!hw_client_send_to_socket_valid) {
+					hw_client_recv_port = latest_port;
+				}
+
 				// if sendto socket has not been setup -- we have received the Client's RX port or it has changed
 				//
 				if (!hw_client_send_to_socket_valid) {
 					if (hw_client_recv_port) {
 						// Initialize address and Port for sending to Client
 						//
-						send_to_server_addr.sin_family = AF_INET;
-						send_to_server_addr.sin_port = htons(hw_client_recv_port);
-						send_to_server_addr.sin_addr.s_addr = hw_client_ip;
+						hw_client_send_to_server_addr.sin_family = AF_INET;
+						hw_client_send_to_server_addr.sin_port = htons(hw_client_recv_port);
+						hw_client_send_to_server_addr.sin_addr.s_addr = hw_client_ip;
 
 						// initialize socket for sending
 						hw_client_send_to_socket = network->create_socket("sendto", hw_client_send_to_socket_valid);
 						if (hw_client_send_to_socket_valid) {
-							auto retval = network->sendData(hw_client_send_to_socket, send_to_server_addr, reinterpret_cast<char*>(&my_health_packet_for_hw_client), health_packet_size);
+							auto retval = network->sendData(hw_client_send_to_socket, hw_client_send_to_server_addr, reinterpret_cast<char*>(&my_health_packet_for_hw_client), health_packet_size);
 							// verify socket after sending data
 							hw_client_send_to_socket_valid = hw_client_send_to_socket != INVALID_SOCKET;
 							hw_client_healthy = hw_client_send_to_socket_valid;
@@ -305,7 +291,7 @@ void Server::update()
 		else if (hw_client_time_since_last_send > ONE_SECOND) {
 			// send Health packet
 			// send client my health using client's IP address and port
-			auto retval = network->sendData(hw_client_send_to_socket, send_to_server_addr, reinterpret_cast<char*>(&my_health_packet_for_hw_client), health_packet_size);
+			auto retval = network->sendData(hw_client_send_to_socket, hw_client_send_to_server_addr, reinterpret_cast<char*>(&my_health_packet_for_hw_client), health_packet_size);
 			// verify socket after sending data
 			hw_client_send_to_socket_valid = hw_client_send_to_socket != INVALID_SOCKET;
 			hw_client_healthy = hw_client_send_to_socket_valid;
