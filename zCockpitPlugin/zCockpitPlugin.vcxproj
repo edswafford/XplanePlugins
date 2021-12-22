@@ -155,13 +155,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\Client.cpp" />
+    <ClCompile Include="src\Connection.cpp" />
     <ClCompile Include="src\PluginAPI.cpp" />
     <ClCompile Include="src\Server.cpp" />
     <ClCompile Include="src\ZCockpitPlugin.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\Client.h" />
+    <ClInclude Include="src\Connection.h" />
     <ClInclude Include="src\Server.h" />
     <ClInclude Include="src\ZCockpitPlugin.h" />
   </ItemGroup>

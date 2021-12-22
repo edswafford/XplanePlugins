@@ -10,7 +10,7 @@
     <ClCompile Include="src\ZCockpitPlugin.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\Client.cpp">
+    <ClCompile Include="src\Connection.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
@@ -21,7 +21,7 @@
     <ClInclude Include="src\ZCockpitPlugin.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="src\Client.h">
+    <ClInclude Include="src\Connection.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

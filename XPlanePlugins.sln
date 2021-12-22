@@ -5,11 +5,11 @@ VisualStudioVersion = 17.0.32014.148
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zCockpitPlugin", "zCockpitPlugin\zCockpitPlugin.vcxproj", "{E5D52F4E-00E2-4DB0-9814-CB3001CEC292}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "shared_src", "shared_src\shared_src.vcxitems", "{5E4111BA-56AC-4776-98A2-648A491F6FE5}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "shared_src", "shared_src\shared_src.vcxitems", "{5C955C3A-4621-4FD6-92E0-F1CCAE6D9CFD}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
-		shared_src\shared_src.vcxitems*{5e4111ba-56ac-4776-98a2-648a491f6fe5}*SharedItemsImports = 9
+		shared_src\shared_src.vcxitems*{5c955c3a-4621-4fd6-92e0-f1ccae6d9cfd}*SharedItemsImports = 9
 		shared_src\shared_src.vcxitems*{e5d52f4e-00e2-4db0-9814-cb3001cec292}*SharedItemsImports = 4
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

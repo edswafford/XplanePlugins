@@ -3,7 +3,7 @@
   <PropertyGroup Label="Globals">
     <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
-    <ItemsProjectGuid>{5e4111ba-56ac-4776-98a2-648a491f6fe5}</ItemsProjectGuid>
+    <ItemsProjectGuid>{5c955c3a-4621-4fd6-92e0-f1ccae6d9cfd}</ItemsProjectGuid>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -14,14 +14,15 @@
     <ProjectCapability Include="SourceItemsFromImports" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\shared_src\logger.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\shared_src\network.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\shared_src\Util.cpp" />
-  </ItemGroup>
-  <ItemGroup>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\shared_src\json.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\shared_src\logger.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\shared_src\network.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\shared_src\sim737Common.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\shared_src\Util.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\shared_src\logger.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\shared_src\network.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\shared_src\Util.cpp" />
   </ItemGroup>
 </Project>
