@@ -16,23 +16,26 @@ public:
 	virtual ~Connection();
 	void create_sendto_socket(const uint16_t port);
 	void create_recvfrom_socket();
-	explicit Connection(Network* network_ptr, const uint32_t id, const uint32_t msg_id, const unsigned long ip);
+	explicit Connection(Network* network_ptr, const uint64_t id, const unsigned long ip);
 
 	std::tuple<bool, int>  receive();
 
-	void broadcast_health(SOCKET& socket, uint16_t client_port, uint32_t msg_id);
+	void broadcast_health(SOCKET& socket, uint16_t client_port, uint32_t package_id);
 
 	void send_health();
 
 	bool client_is_connected() const { return connected; }
-	uint32_t client_msg_id() const { return msg_id; }
+	uint64_t client_id() const { return id; }
+	bool client_timeout() const { return ten_minute_timeout; }
+	uint32_t get_connected_package_id() const { return connected_package_id; }
+	void clear_connected_package_id() { connected_package_id = 0; }
 
 private:
 	Network* network{ nullptr };
-	uint32_t id{ 0 };
-	uint32_t msg_id{ 0 };
+	uint64_t id{ 0 };
 
 	unsigned long client_ip{ 0 };
+	uint32_t connected_package_id{ 0 };
 
 	std::string client_ip_str{};
 
@@ -57,6 +60,8 @@ private:
 
 
 	bool connected{ false };
+	bool ten_minute_timeout{ false };
+
 
 	// Health Packets	
 	HealthPacket my_health_packet{};

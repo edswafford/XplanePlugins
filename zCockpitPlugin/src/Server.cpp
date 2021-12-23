@@ -1,5 +1,10 @@
-#include <winsock2.h>
-#include <ws2tcpip.h>
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+
+
+
+
+#include <WinSock2.h>
+#include <WS2tcpip.h>
 #include <charconv>
 #include <map>
 
@@ -18,7 +23,7 @@
 std::random_device rd;  //Will be used to obtain a seed for the random number engine
 std::seed_seq seed{ rd(), rd(), rd(), rd() };
 std::mt19937 Server::gen(seed); //Standard mersenne_twister_engine seeded with rd()
-std::uniform_int_distribution<uint32_t> uid(1, UINT32_MAX);
+std::uniform_int_distribution<uint32_t> make_uid(1, UINT32_MAX);
 
 
 
@@ -83,46 +88,46 @@ void Server::update()
 
 			if (client_health_packet->packageType == PackageType::Health && client_health_packet->cmd == Command::connect) {
 				Connection* connection = nullptr;
-				auto client_id = ntohl(client_health_packet->id);
+				auto client_id = ntohll(client_health_packet->client_id);
 				const auto client_recv_port = ntohs(client_health_packet->port);
-				const auto client_msg_id = ntohl(client_health_packet->msg_id);
-				if (connections.contains(client_id))
+				const auto package_id = ntohl(client_health_packet->package_id);
+				if(client_id == 0)
 				{
-					connection = connections[client_health_packet->id].get();
-				}
-				else if (msg_id_map.contains(client_msg_id))
-				{
-					// We've seen this message -- don't create another connection because the connection is in progress
-					client_id = msg_id_map[client_msg_id];
-					connection = connections[client_id].get();
+					// Connection is in the process of being initialized
+					// It takes a round trip from the Client to complete
+					if(connections_in_process.contains(package_id))
+					{
+						auto id = connections_in_process[package_id];
+						if(connections.contains(id))
+						{
+							client_id = id;
+							connection = connections[client_id].get();
+						}
+					}
+					else {
+						// Create a new Connection
+						const uint64_t uid = static_cast<uint64_t>(make_uid(gen)) << 32;
+						client_id = uid | package_id;
+						connections[client_id] = std::make_unique<Connection>(network.get(), client_id, broadcast_addr_of_sender.sin_addr.S_un.S_addr);
+						connections_in_process[package_id] = client_id;
+						connection = connections[client_id].get();
+					}
 				}
 				else
 				{
-					// Check for disconnected Clients
-					std::vector<std::uint32_t> id_list;
-					for (auto const& id : std::views::keys(connections)) {
-						id_list.push_back(id);
-					}
-
-					for(auto id : id_list)
+					// Client has restarted -- No need to reinitialize
+					if (connections.contains(client_id))
 					{
-						connection = connections[id].get();
-						if (!connection->client_is_connected()) {
-							if (connection->client_msg_id() == client_msg_id)
-							{
-								connection = nullptr;
-								connections.erase(id);
-							}
-						}
+						connection = connections[client_id].get();
 					}
-
-					// Create Connection -- first time through
-					client_id = uid(gen);
-					connections[client_id] = std::make_unique<Connection>(network.get(), client_id, client_msg_id, broadcast_addr_of_sender.sin_addr.S_un.S_addr);
-					connection = connections[client_id].get();
-
-					// link msg_id to client_id
-					msg_id_map[client_msg_id] = client_id;
+					else
+					{
+						// Client has alread been assigned an ID from a previous execution
+						// no reason to create a new one
+						connections[client_id] = std::make_unique<Connection>(network.get(), client_id, broadcast_addr_of_sender.sin_addr.S_un.S_addr);
+						connections_in_process[package_id] = client_id;
+						connection = connections[client_id].get();
+					}
 				}
 				if (connection != nullptr) {
 					//
@@ -130,7 +135,7 @@ void Server::update()
 					// receiving broadcast from the client
 					//
 					if (send_broadcast_socket_valid) {
-						connection->broadcast_health(send_broadcast_socket, client_recv_port, client_msg_id);
+						connection->broadcast_health(send_broadcast_socket, client_recv_port, package_id);
 						send_broadcast_socket_valid = send_broadcast_socket != INVALID_SOCKET;
 					}
 				}
@@ -153,19 +158,23 @@ void Server::update()
 		if (connection != nullptr) {
 			// Receiving on Client's RX port
 			auto [rx_valid, num_bytes] = connection->receive();
-			if(!connection->client_is_connected())
-			{
-				// client has stopped sending messages
-				// clear the list of client msg_id's so don't leave a dangling client  when same client tries to reconnect
-				if(msg_id_map.contains(connection->client_msg_id()))
+			if (rx_valid) {
+				if (connection->get_connected_package_id() != 0)
 				{
-					msg_id_map.erase(connection->client_msg_id());
+					auto id = connection->get_connected_package_id();
+					if (connections_in_process.contains(id)) {
+						connections_in_process.erase(id);
+						connection->clear_connected_package_id();
+					}
 				}
+				if (!connection->client_is_connected())
+				{
+					LOG() << "Client " << connection->client_id() << " has stopped sending packages.";
+				}
+				//
+				// Process Data from Client
+				//
 			}
-			//
-			// Process Data from Client
-			//
-
 		}
 
 
@@ -183,8 +192,21 @@ void Server::update()
 		{
 			connection->send_health();
 		}
+		if(connection->client_timeout())
+		{
+			timeout_clients.push_back(client_id);
+		}
 	}
 
+	// Clean UP
+	if(!timeout_clients.empty())
+	{
+		for(auto id : timeout_clients)
+		{
+			connections.erase(id);
+		}
+		timeout_clients.clear();
+	}
 
 	// 1Hz task
 	if (current_cycle >= ONE_SECOND)

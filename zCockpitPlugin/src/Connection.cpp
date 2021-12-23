@@ -20,7 +20,7 @@ void Connection::create_recvfrom_socket()
 	}
 }
 
-Connection::Connection(Network* network_ptr, const uint32_t id, const uint32_t msg_id, const unsigned long ip) : network{ network_ptr }, id{ id }, msg_id{msg_id}, client_ip{ ip }
+Connection::Connection(Network* network_ptr, const uint64_t id, const unsigned long ip) : network{ network_ptr }, id{ id }, client_ip{ ip }
 {
 	// Fill-in client socket's address information
 	client_broadcast_addr.sin_family = AF_INET; // Address family to use
@@ -108,6 +108,9 @@ std::tuple<bool, int> Connection::receive()
 			const HealthPacket* client_health_packet = reinterpret_cast<HealthPacket*>(receive_buffer);
 			if (client_health_packet->packageType == PackageType::Health) {
 				const auto latest_port = ntohs(client_health_packet->port);
+				const auto package_id = ntohl(client_health_packet->package_id);
+				connected_package_id = package_id;
+
 				LOG() << "Health message received on My RX port " << recvfrom_port << " from IP " << client_ip_str << " Client RX Port is " << latest_port;
 
 				//has the Client's RX port changed 
@@ -124,6 +127,11 @@ std::tuple<bool, int> Connection::receive()
 		if (hw_client_time_since_last_recv > FIVE_SECONDS) {
 			// We've lost Comm with Server
 			connected = false;
+			if(hw_client_time_since_last_recv > TEN_MINUTES)
+			{
+				// we should remove client
+				ten_minute_timeout = true;
+			}
 		}
 		else {
 			hw_client_time_since_last_recv += 1;
@@ -132,7 +140,7 @@ std::tuple<bool, int> Connection::receive()
 	return std::make_tuple(recv_from_socket_valid, num_bytes);
 }
 
-void Connection::broadcast_health(SOCKET& socket, uint16_t client_port, uint32_t msg_id)
+void Connection::broadcast_health(SOCKET& socket, uint16_t client_port, uint32_t package_id)
 {
 	if (!send_to_socket_valid && client_port != 0)
 	{
@@ -144,10 +152,10 @@ void Connection::broadcast_health(SOCKET& socket, uint16_t client_port, uint32_t
 	}
 
 	//  identify which client for all future messages
-	my_health_packet.id = htonl(id);
+	my_health_packet.client_id = htonll(id);
 
 	// We are broadcasting to all client --> Client uses this to verify it is the reply to its broadcast 
-	my_health_packet.msg_id = htonl(msg_id);
+	my_health_packet.package_id = htonl(package_id);
 
 	// Broadcast our IP and RX port
 	const auto bytes_sent = network->sendData(socket, client_broadcast_addr,
@@ -166,7 +174,7 @@ void Connection::send_health()
 {
 	if (hw_client_time_since_last_send > ONE_SECOND) {
 		// send Health packet
-		HealthPacket health_packet{ SIM_DAT_ID, PackageType::Health, htonl(id), Command::no_op, htons(recvfrom_port) };
+		HealthPacket health_packet{ SIM_DAT_ID, PackageType::Health, htonll(id), Command::no_op, htons(recvfrom_port) };
 
 		auto retval = network->sendData(send_to_socket, hw_client_send_to_server_addr,
 			reinterpret_cast<char*>(&health_packet), health_packet_size);

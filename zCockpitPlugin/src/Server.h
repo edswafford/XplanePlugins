@@ -32,8 +32,9 @@ private:
 	static std::mt19937 gen;
 
 	std::unique_ptr<Network> network{ nullptr };
-	std::map<uint32_t, std::unique_ptr<Connection>> connections;
-	std::map<uint32_t, uint32_t> msg_id_map;
+	std::map<uint64_t, std::unique_ptr<Connection>> connections;
+	std::map<uint32_t, uint64_t> connections_in_process;
+	std::vector<uint64_t> timeout_clients;
 
 	sockaddr_in broadcast_addr_of_sender;
 	int sockaddr_in_size = sizeof(broadcast_addr_of_sender);
