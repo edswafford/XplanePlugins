@@ -12,17 +12,25 @@ class Connection
 {
 
 public:
-	Connection() = delete;
+
+	explicit Connection(Network* network_ptr, const uint64_t id, const unsigned long ip);
 	virtual ~Connection();
+
+	Connection() = delete;
+	Connection(const Connection&) = delete;
+	Connection& operator=(const Connection&) = delete;
+	Connection(Connection&&) = delete;
+	Connection& operator=(Connection&&) = delete;
+
 	void create_sendto_socket(const uint16_t port);
 	void create_recvfrom_socket();
-	explicit Connection(Network* network_ptr, const uint64_t id, const unsigned long ip);
+
 
 	std::tuple<bool, int>  receive();
 
 	void broadcast_health(SOCKET& socket, uint16_t client_port, uint32_t package_id);
-
 	void send_health();
+
 
 	bool client_is_connected() const { return connected; }
 	uint64_t client_id() const { return id; }
@@ -39,20 +47,15 @@ private:
 
 	std::string client_ip_str{};
 
-
-
-	///////////////////
-
-
-	SOCKET recv_from_socket{ INVALID_SOCKET };
-	bool recv_from_socket_valid{ false };
+	SOCKET recvfrom_socket{ INVALID_SOCKET };
+	bool recvfrom_socket_valid{ false };
 	uint16_t recvfrom_port{ 0 };
 
-	SOCKET send_to_socket{ INVALID_SOCKET };
-	bool send_to_socket_valid{ false };
+	SOCKET sendto_socket{ INVALID_SOCKET };
+	bool sendto_socket_valid{ false };
 	uint16_t sendto_port{ 0 };
 
-	sockaddr_in hw_client_send_to_server_addr{};
+	sockaddr_in sendto_addr{};
 
 
 	sockaddr_in client_broadcast_addr{};
@@ -70,6 +73,6 @@ private:
 	int receive_buffer_size{ RECEIVE_BUFFER_SIZE };
 	char receive_buffer[RECEIVE_BUFFER_SIZE]{};
 
-	int hw_client_time_since_last_send{ ONE_SECOND };
-	int hw_client_time_since_last_recv{ FIVE_SECONDS };
+	int client_time_since_last_send{ ONE_SECOND };
+	int client_time_since_last_recv{ FIVE_SECONDS };
 };

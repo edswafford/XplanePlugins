@@ -1,25 +1,5 @@
 #include "Connection.h"
 
-// initialize socket used to receive data from the Server
-// Use port 0 so the OS knows to assing a port to us from its pool
-void Connection::create_recvfrom_socket()
-{
-	recv_from_socket = network->create_bind_socket("recvfrom", recv_from_socket_valid, 0, client_ip, true);
-
-	if (recv_from_socket_valid) {
-		// Get the port that the OS assigned us
-		// 
-		recvfrom_port = network->get_port(recv_from_socket);
-		if (recvfrom_port != 0) {
-
-			// Tell Server our RX port
-			if (recv_from_socket_valid) {
-				my_health_packet.port = htons(recvfrom_port);
-			}
-		}
-	}
-}
-
 Connection::Connection(Network* network_ptr, const uint64_t id, const unsigned long ip) : network{ network_ptr }, id{ id }, client_ip{ ip }
 {
 	// Fill-in client socket's address information
@@ -40,14 +20,36 @@ Connection::Connection(Network* network_ptr, const uint64_t id, const unsigned l
 
 Connection::~Connection()
 {
-	if (recv_from_socket_valid) {
-		network->close_socket(recv_from_socket);
+	if (recvfrom_socket_valid) {
+		network->close_socket(recvfrom_socket);
 	}
-	if (send_to_socket_valid) {
-		network->close_socket(send_to_socket);
+	if (sendto_socket_valid) {
+		network->close_socket(sendto_socket);
 	}
 
 }
+
+
+// initialize socket used to receive data from the Server
+// Use port 0 so the OS knows to assing a port to us from its pool
+void Connection::create_recvfrom_socket()
+{
+	recvfrom_socket = network->create_bind_socket("recvfrom", recvfrom_socket_valid, 0, client_ip, true);
+
+	if (recvfrom_socket_valid) {
+		// Get the port that the OS assigned us
+		// 
+		recvfrom_port = network->get_port(recvfrom_socket);
+		if (recvfrom_port != 0) {
+
+			// Tell Server our RX port
+			if (recvfrom_socket_valid) {
+				my_health_packet.port = htons(recvfrom_port);
+			}
+		}
+	}
+}
+
 
 void Connection::create_sendto_socket(const uint16_t port)
 {
@@ -56,31 +58,31 @@ void Connection::create_sendto_socket(const uint16_t port)
 	//
 	if (port != 0) {
 		//has the Client's RX port changed 
-		if (send_to_socket_valid && sendto_port != port) {
-			network->close_socket(send_to_socket);
-			send_to_socket_valid = false;
+		if (sendto_socket_valid && sendto_port != port) {
+			network->close_socket(sendto_socket);
+			sendto_socket_valid = false;
 			sendto_port = port;
 		}
 
-		else if (!send_to_socket_valid) {
+		else if (!sendto_socket_valid) {
 			sendto_port = port;
 		}
-		if (!send_to_socket_valid) {
+		if (!sendto_socket_valid) {
 			// Initialize address and Port for sending to Client
 			//
-			hw_client_send_to_server_addr.sin_family = AF_INET;
-			hw_client_send_to_server_addr.sin_port = htons(sendto_port);
-			hw_client_send_to_server_addr.sin_addr.s_addr = client_ip;
+			sendto_addr.sin_family = AF_INET;
+			sendto_addr.sin_port = htons(sendto_port);
+			sendto_addr.sin_addr.s_addr = client_ip;
 
 			// initialize socket for sending
-			send_to_socket = network->create_socket("sendto", send_to_socket_valid);
-			if (send_to_socket_valid)
+			sendto_socket = network->create_socket("sendto", sendto_socket_valid);
+			if (sendto_socket_valid)
 			{
-				auto retval = network->sendData(send_to_socket, hw_client_send_to_server_addr, reinterpret_cast<char*>(&my_health_packet), health_packet_size);
+				auto retval = network->sendData(sendto_socket, sendto_addr, reinterpret_cast<char*>(&my_health_packet), health_packet_size);
 				// verify socket after sending data
-				send_to_socket_valid = send_to_socket != INVALID_SOCKET;
-				if (send_to_socket_valid) {
-					hw_client_time_since_last_send = 0;
+				sendto_socket_valid = sendto_socket != INVALID_SOCKET;
+				if (sendto_socket_valid) {
+					client_time_since_last_send = 0;
 				}
 			}
 		}
@@ -92,16 +94,16 @@ void Connection::create_sendto_socket(const uint16_t port)
 std::tuple<bool, int> Connection::receive()
 {
 	int num_bytes = 0;
-	if (recv_from_socket_valid) {
+	if (recvfrom_socket_valid) {
 		// Receiving on RX port
-		num_bytes = network->recv_data(recv_from_socket, receive_buffer, receive_buffer_size);
+		num_bytes = network->recv_data(recvfrom_socket, receive_buffer, receive_buffer_size);
 		if (num_bytes == SOCKET_ERROR) {
 			// Cannot use socket -- it has been closed due to error
-			recv_from_socket_valid = false;
+			recvfrom_socket_valid = false;
 		}
 		else if (num_bytes > 0) {
 			LOG() << "received " << num_bytes << " from " << id;
-			hw_client_time_since_last_recv = 0;
+			client_time_since_last_recv = 0;
 			connected = true;
 
 			// Check for Health packet
@@ -114,39 +116,39 @@ std::tuple<bool, int> Connection::receive()
 				LOG() << "Health message received on My RX port " << recvfrom_port << " from IP " << client_ip_str << " Client RX Port is " << latest_port;
 
 				//has the Client's RX port changed 
-				if (send_to_socket_valid && sendto_port != latest_port) {
+				if (sendto_socket_valid && sendto_port != latest_port) {
 					LOG() << "Client IP " << client_ip_str << " Port changed from " << sendto_port << " to " << latest_port;
 					create_sendto_socket(latest_port);
 				}
-				else if (!send_to_socket_valid) {
+				else if (!sendto_socket_valid) {
 					create_sendto_socket(latest_port);
 				}
 			}
 
 		}
-		if (hw_client_time_since_last_recv > FIVE_SECONDS) {
+		if (client_time_since_last_recv > FIVE_SECONDS) {
 			// We've lost Comm with Server
 			connected = false;
-			if(hw_client_time_since_last_recv > TEN_MINUTES)
+			if(client_time_since_last_recv > TEN_MINUTES)
 			{
 				// we should remove client
 				ten_minute_timeout = true;
 			}
 		}
 		else {
-			hw_client_time_since_last_recv += 1;
+			client_time_since_last_recv += 1;
 		}
 	}
-	return std::make_tuple(recv_from_socket_valid, num_bytes);
+	return std::make_tuple(recvfrom_socket_valid, num_bytes);
 }
 
 void Connection::broadcast_health(SOCKET& socket, uint16_t client_port, uint32_t package_id)
 {
-	if (!send_to_socket_valid && client_port != 0)
+	if (!sendto_socket_valid && client_port != 0)
 	{
 		create_sendto_socket(client_port);
 	}
-	if (!recv_from_socket_valid)
+	if (!recvfrom_socket_valid)
 	{
 		create_recvfrom_socket();
 	}
@@ -172,22 +174,22 @@ void Connection::broadcast_health(SOCKET& socket, uint16_t client_port, uint32_t
 
 void Connection::send_health()
 {
-	if (hw_client_time_since_last_send > ONE_SECOND) {
+	if (client_time_since_last_send > ONE_SECOND) {
 		// send Health packet
 		HealthPacket health_packet{ SIM_DAT_ID, PackageType::Health, htonll(id), Command::no_op, htons(recvfrom_port) };
 
-		auto retval = network->sendData(send_to_socket, hw_client_send_to_server_addr,
+		auto retval = network->sendData(sendto_socket, sendto_addr,
 			reinterpret_cast<char*>(&health_packet), health_packet_size);
 		// verify socket after sending data
-		send_to_socket_valid = send_to_socket != INVALID_SOCKET;
-		if (send_to_socket_valid) {
-			hw_client_time_since_last_send = 0;
+		sendto_socket_valid = sendto_socket != INVALID_SOCKET;
+		if (sendto_socket_valid) {
+			client_time_since_last_send = 0;
 		}
 	}
-	if (hw_client_time_since_last_send <= ONE_SECOND) {
-		hw_client_time_since_last_send += 1;
+	if (client_time_since_last_send <= ONE_SECOND) {
+		client_time_since_last_send += 1;
 	}
 	else {
-		hw_client_time_since_last_send = ONE_SECOND;
+		client_time_since_last_send = ONE_SECOND;
 	}
 }
