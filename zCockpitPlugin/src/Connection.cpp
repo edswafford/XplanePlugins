@@ -164,10 +164,7 @@ void Connection::broadcast_health(SOCKET& socket, uint16_t client_port, uint32_t
 		reinterpret_cast<char*>(&my_health_packet), health_packet_size);
 
 	if (bytes_sent == SOCKET_ERROR) {
-		const auto error = WSAGetLastError();
-		LOG(Level::Severe) << "Cannot send_to broadcast socket winsock error :" << network->getErrorMessage(error);
-		network->close_socket(socket);
-		socket = INVALID_SOCKET;
+		LOG(Level::Severe) << "Broadcast to Client failed";
 	}
 
 }
