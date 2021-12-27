@@ -30,8 +30,8 @@ std::uniform_int_distribution<uint32_t> make_uid(1, UINT32_MAX);
 Server::Server()
 {
 	// Must be called first to initialize Winsock
+	udp = std::make_unique<Udp>();
 	network = std::make_unique<Network>();
-
 
 	// Fill-in server socket's address information
 	server_broadcast_addr.sin_family = AF_INET; // Address family to use
@@ -44,15 +44,16 @@ Server::Server()
 
 Server::~Server()
 {
-	if (revc_broadcast_socket_valid) {
-		network->close_socket(revc_broadcast_socket);
+	if (network != nullptr) {
+		if (revc_broadcast_socket_valid) {
+			udp->close_socket(revc_broadcast_socket);
+		}
+		if (send_broadcast_socket_valid) {
+			udp->close_socket(send_broadcast_socket);
+		}
 	}
-	if (send_broadcast_socket_valid) {
-		network->close_socket(send_broadcast_socket);
-	}
-
+	udp = nullptr;
 	network = nullptr;
-
 }
 
 
@@ -65,10 +66,10 @@ void Server::update()
 
 	if (!revc_broadcast_socket_valid) {
 		// we need to init the socket for receiving the broadcast message from client(s)
-		revc_broadcast_socket = network->create_bind_socket("receive broadcast", revc_broadcast_socket_valid, SERVER_BROADCAST_RX_PORT_ADDRESS);;
+		revc_broadcast_socket = udp->create_bind_socket("receive broadcast", revc_broadcast_socket_valid, SERVER_BROADCAST_RX_PORT_ADDRESS);;
 	}
 	if (!send_broadcast_socket_valid) {
-		send_broadcast_socket = network->create_socket("send broadcast", send_broadcast_socket_valid, true);
+		send_broadcast_socket = udp->create_socket("send broadcast", send_broadcast_socket_valid, true);
 	}
 	// Always look for new broadcast
 	if (revc_broadcast_socket_valid) {
@@ -77,7 +78,7 @@ void Server::update()
 		memset((char*)&broadcast_addr_of_sender, 0, sockaddr_in_size);
 
 		// look for Broadcasting Clients
-		const auto bytes_received = network->recv_data(revc_broadcast_socket, receive_buffer, receive_buffer_size, &broadcast_addr_of_sender, &sockaddr_in_size);
+		const auto bytes_received = udp->recv_data(revc_broadcast_socket, receive_buffer, receive_buffer_size, &broadcast_addr_of_sender, &sockaddr_in_size);
 		revc_broadcast_socket_valid = revc_broadcast_socket != INVALID_SOCKET;
 
 		// We've received Client's Health message, so we know its IP address, but we don't know it's RX port
@@ -108,7 +109,7 @@ void Server::update()
 						// Create a new Connection
 						const uint64_t uid = static_cast<uint64_t>(make_uid(gen)) << 32;
 						client_id = uid | package_id;
-						connections[client_id] = std::make_unique<Connection>(network.get(), client_id, broadcast_addr_of_sender.sin_addr.S_un.S_addr);
+						connections[client_id] = std::make_unique<Connection>(udp.get(), client_id, broadcast_addr_of_sender.sin_addr.S_un.S_addr);
 						connections_in_process[package_id] = client_id;
 						connection = connections[client_id].get();
 					}
@@ -124,7 +125,7 @@ void Server::update()
 					{
 						// Client has alread been assigned an ID from a previous execution
 						// no reason to create a new one
-						connections[client_id] = std::make_unique<Connection>(network.get(), client_id, broadcast_addr_of_sender.sin_addr.S_un.S_addr);
+						connections[client_id] = std::make_unique<Connection>(udp.get(), client_id, broadcast_addr_of_sender.sin_addr.S_un.S_addr);
 						connections_in_process[package_id] = client_id;
 						connection = connections[client_id].get();
 					}

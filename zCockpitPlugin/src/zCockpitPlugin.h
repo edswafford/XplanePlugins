@@ -42,6 +42,6 @@ private:
 
 
 	// Server initializes Network
-	// All network communication goes through the server
+	// All udp communication goes through the server
 	std::unique_ptr<Server> server{nullptr};
 };

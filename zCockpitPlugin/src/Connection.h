@@ -13,7 +13,7 @@ class Connection
 
 public:
 
-	explicit Connection(Network* network_ptr, const uint64_t id, const unsigned long ip);
+	explicit Connection(Udp* udp_ptr, const uint64_t id, const unsigned long ip);
 	virtual ~Connection();
 
 	Connection() = delete;
@@ -39,7 +39,7 @@ public:
 	void clear_connected_package_id() { connected_package_id = 0; }
 
 private:
-	Network* network{ nullptr };
+	Udp* udp{ nullptr };
 	uint64_t id{ 0 };
 
 	unsigned long client_ip{ 0 };

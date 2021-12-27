@@ -31,7 +31,10 @@ private:
 	// Random number generator
 	static std::mt19937 gen;
 
+	std::unique_ptr<Udp> udp{ nullptr };
 	std::unique_ptr<Network> network{ nullptr };
+
+
 	std::map<uint64_t, std::unique_ptr<Connection>> connections;
 	std::map<uint32_t, uint64_t> connections_in_process;
 	std::vector<uint64_t> timeout_clients;
