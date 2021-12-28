@@ -13,8 +13,10 @@ class Connection
 
 public:
 
-	explicit Connection(Udp* udp_ptr, const uint64_t id, const unsigned long ip);
+	explicit Connection(Udp* udp_ptr, const uint64_t id, const unsigned long client_ip);
 	virtual ~Connection();
+
+	void check_transmitter(uint16_t client_recv_port, const uint32_t ip);
 
 	Connection() = delete;
 	Connection(const Connection&) = delete;
@@ -22,44 +24,34 @@ public:
 	Connection(Connection&&) = delete;
 	Connection& operator=(Connection&&) = delete;
 
-	void create_sendto_socket(const uint16_t port);
-	void create_recvfrom_socket();
+	int receive();
 
-
-	std::tuple<bool, int>  receive();
-
-	void broadcast_health(SOCKET& socket, uint16_t client_port, uint32_t package_id);
+	void broadcast_health(TxEndPoint* broadcast_receiver, const uint32_t package_id);
 	void send_health();
 
 
 	bool client_is_connected() const { return connected; }
-	uint64_t client_id() const { return id; }
+
+	uint32_t can_clear_connection_in_process() const;
+
+	uint64_t client_id() const { return unique_id; }
 	bool client_timeout() const { return ten_minute_timeout; }
-	uint32_t get_connected_package_id() const { return connected_package_id; }
 	void clear_connected_package_id() { connected_package_id = 0; }
 
 private:
-	Udp* udp{ nullptr };
-	uint64_t id{ 0 };
+	void create_transmitter(const uint16_t port, const uint32_t ip);
+	void create_receiver(const unsigned long client_ip);
 
-	unsigned long client_ip{ 0 };
+
+	Udp* udp{ nullptr };
+	uint64_t unique_id{ 0 };
+
 	uint32_t connected_package_id{ 0 };
 
 	std::string client_ip_str{};
 
-	SOCKET recvfrom_socket{ INVALID_SOCKET };
-	bool recvfrom_socket_valid{ false };
-	uint16_t recvfrom_port{ 0 };
 
-	SOCKET sendto_socket{ INVALID_SOCKET };
-	bool sendto_socket_valid{ false };
-	uint16_t sendto_port{ 0 };
-
-	sockaddr_in sendto_addr{};
-
-
-	sockaddr_in client_broadcast_addr{};
-	short client_broadcast_rx_port{ CLIENT_BROADCAST_RX_PORT_ADDRESS };
+	uint16_t transmitter_port{ 0 };
 
 
 	bool connected{ false };
@@ -75,4 +67,8 @@ private:
 
 	int client_time_since_last_send{ ONE_SECOND };
 	int client_time_since_last_recv{ FIVE_SECONDS };
+
+
+	TxEndPoint transmitter;
+	RxEndPoint receiver;
 };

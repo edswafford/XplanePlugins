@@ -39,26 +39,15 @@ private:
 	std::map<uint32_t, uint64_t> connections_in_process;
 	std::vector<uint64_t> timeout_clients;
 
-	sockaddr_in broadcast_addr_of_sender;
-	int sockaddr_in_size = sizeof(broadcast_addr_of_sender);
-
 
 	short server_broadcast_rx_port{ SERVER_BROADCAST_RX_PORT_ADDRESS };
 
-
-	sockaddr_in server_broadcast_addr {};
-
-
+	TxEndPoint broadcaster;
+	RxEndPoint broadcast_receiver;
 
 	int receive_buffer_size{ RECEIVE_BUFFER_SIZE };
 	char receive_buffer[RECEIVE_BUFFER_SIZE]{};
-
-	SOCKET revc_broadcast_socket{ INVALID_SOCKET };
-	bool revc_broadcast_socket_valid{ false };
-
-	SOCKET send_broadcast_socket{ INVALID_SOCKET };
-	bool send_broadcast_socket_valid{ false };
-
+	
 
 	int current_cycle{ ONE_SECOND };
 	int currentSeconds{ ONE_MINUTE };
@@ -70,8 +59,7 @@ private:
 	//  TODO 
 	//
 
-
-
 	bool hw_client_send_data_available{ false };
-	
+
+
 };
