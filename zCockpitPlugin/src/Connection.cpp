@@ -34,16 +34,7 @@ void Connection::create_receiver(const unsigned long client_ip)
 	receiver = Udp::create_receiver("recvfrom", 0, client_ip);
 	
 	if (receiver.valid()) {
-		// Get the port that the OS assigned us
-		//
-		const auto receiver_port = Udp::get_my_port(&receiver);
-		if (receiver_port != 0) {
-			receiver.port = receiver_port;
-			// Tell Server our RX port
-			if (receiver.valid()) {
-				my_health_packet.port = htons(receiver_port);
-			}
-		}
+		my_health_packet.port = htons(receiver.port);
 	}
 }
 
