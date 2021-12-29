@@ -108,6 +108,12 @@ void Server::update()
 							client_id = id;
 							connection = connections[client_id].get();
 						}
+						// Can we clear connection_in_process
+						if (connection->client_is_connected())
+						{
+								connections_in_process.erase(package_id);
+								connection->clear_connected_package_id();
+						}
 					}
 					else {
 						// Create a new Connection
@@ -173,15 +179,17 @@ void Server::update()
 
 		if (connection != nullptr) {
 			// Receiving on Client's RX port
-			auto num_bytes = connection->receive();
-
-			if (auto id = connection->can_clear_connection_in_process() != 0)
+			auto num_bytes = connection->receive(receive_buffer, receive_buffer_size);
+			if(num_bytes > 0)
 			{
-				if (connections_in_process.contains(id)) {
-					connections_in_process.erase(id);
-					connection->clear_connected_package_id();
+				const auto packet = reinterpret_cast<DefaultPacket*>(receive_buffer);
+				if(packet->packageType == PackageType::SimData)
+				{
+					LOG() << "Sim Data Received";
 				}
 			}
+
+
 
 			if (!connection->client_is_connected())
 			{

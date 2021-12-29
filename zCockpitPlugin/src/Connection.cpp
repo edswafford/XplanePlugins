@@ -87,12 +87,12 @@ void Connection::create_transmitter(const uint16_t port, const uint32_t ip)
 
 
 // Receive Client Data
-int Connection::receive()
+int Connection::receive(char* receive_buffer, const int length)
 {
 	int num_bytes = 0;
 	if (receiver.valid()) {
 		// Receiving on RX port
-		num_bytes = Udp::receive(&receiver, receive_buffer, receive_buffer_size);
+		num_bytes = Udp::receive(&receiver, receive_buffer, length);
 
 		if (num_bytes > 0) {
 			LOG() << "received " << num_bytes << " from " << unique_id;
@@ -169,11 +169,3 @@ void Connection::send_health()
 	}
 }
 
-uint32_t Connection::can_clear_connection_in_process() const
-{
-	if (connected_package_id == 0 || !connected)
-	{
-		return 0;
-	}
-	return connected_package_id;
-}
